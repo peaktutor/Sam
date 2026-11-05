@@ -1,0 +1,10 @@
+{
+ "n_channels": 42,
+ "band": [
+  15.0,
+  30.0
+ ],
+ "peak": null,
+ "aperiodic_slope": -1.6913100807944272,
+ "fallback": true
+}

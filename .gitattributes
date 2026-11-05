@@ -1,2 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# The preregistration fixes these by SHA-256, so git must keep them byte for byte on every computer
+vbn_p4.py -text
+vbn_p4_original.py -text
+p4_out/** -text

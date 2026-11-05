@@ -1,0 +1,20 @@
+# Python environments and caches
+.venv-*/
+__pycache__/
+.pytest_cache/
+*.pyc
+
+# Downloads: large, and can be fetched again
+vbn_cache/
+*.nwb
+*.nwb.part
+*.nwb.part.done
+
+# Build output: the installer goes in a GitHub Release, it is too big for the repo
+build/stage/
+dist/
+
+# Local to one computer
+p4_out/logs/
+demo_run/
+app_settings.json
