@@ -4,11 +4,13 @@ Drives the window inside an installed copy, using the installed copy's own Pytho
     <install>\\runtime\\python.exe <this file> demo         the whole flow on synthetic data
     <install>\\runtime\\python.exe <this file> real BAND    real step 1, then download and run one real pilot session
 """
+import ctypes
 import json
 import os
 import shutil
 import sys
 import time
+from ctypes import wintypes
 
 INSTALL = os.getcwd()
 sys.path.insert(0, INSTALL)
@@ -41,8 +43,38 @@ def check(ok, what):
         raise SystemExit(1)
 
 
+def loaded_dlls():
+    """Full paths of every DLL loaded in this process."""
+    kernel, psapi = ctypes.WinDLL('kernel32'), ctypes.WinDLL('psapi')
+    kernel.GetCurrentProcess.restype = wintypes.HANDLE
+    psapi.EnumProcessModules.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.HMODULE), wintypes.DWORD,
+                                         ctypes.POINTER(wintypes.DWORD)]
+    psapi.GetModuleFileNameExW.argtypes = [wintypes.HANDLE, wintypes.HMODULE, wintypes.LPWSTR, wintypes.DWORD]
+    process = kernel.GetCurrentProcess()
+    handles, needed = (wintypes.HMODULE * 4096)(), wintypes.DWORD()
+    psapi.EnumProcessModules(process, handles, ctypes.sizeof(handles), ctypes.byref(needed))
+    paths = []
+    for handle in handles[:needed.value // ctypes.sizeof(wintypes.HMODULE)]:
+        name = ctypes.create_unicode_buffer(1024)
+        psapi.GetModuleFileNameExW(process, handle, name, 1024)
+        paths.append(name.value)
+    return paths
+
+
+def check_cpp_runtime():
+    """A PC without Microsoft's C++ runtime must still work, so none of it may come from Windows. numexpr, loaded with
+    pandas by the analysis, is the package that needs msvcp140.dll."""
+    import numexpr, pandas, scipy.signal  # noqa: E401,F401
+    runtime = [p for p in loaded_dlls() if os.path.basename(p).lower().startswith(('msvcp140', 'vcruntime140', 'concrt140'))]
+    outside = [p for p in runtime if not os.path.normcase(p).startswith(os.path.normcase(INSTALL))]
+    check(any(os.path.basename(p).lower() == 'msvcp140.dll' for p in runtime) and not outside,
+          f'C++ runtime loads from the bundle: {sorted(os.path.basename(p) for p in runtime)}'
+          + (f'; from outside it: {outside}' if outside else ''))
+
+
 def common(app):
     check(INSTALLED and os.path.normcase(ROOT) == os.path.normcase(INSTALL), f'runs as an installed copy from {ROOT}')
+    check_cpp_runtime()
     check(not DATA_ROOT.lower().startswith(INSTALL.lower()), f'data folder is outside the program folder: {DATA_ROOT}')
     check(os.path.normcase(app.python) == os.path.normcase(RUNTIME_PYTHON), 'uses the bundled Python')
     pump(app, lambda: app.env is not None, 240)

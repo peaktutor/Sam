@@ -17,6 +17,8 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+; Windows 10 and 11 include what the bundle doesn't carry: the universal C runtime and .NET Framework 4 for the launcher
+MinVersion=10.0
 OutputDir=..\dist
 OutputBaseFilename=P4-Analysis-Setup-{#AppVersion}
 SetupIconFile=..\p4_app\assets\p4.ico

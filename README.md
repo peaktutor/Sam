@@ -30,7 +30,9 @@ Steps 1 and 2 are done on the real data, and the preregistration bundle is ready
 ## Install it on Windows
 
 Download **`P4-Analysis-Setup-1.0.0.exe`** from the [latest release](https://github.com/peaktutor/Sam/releases/latest)
-and run it. It needs no administrator rights and no separate Python: everything is bundled.
+and run it. It needs 64-bit Windows 10 or 11, but no administrator rights and nothing else installed first: Python, the
+packages and Microsoft's C++ runtime are all bundled. It has been tested on one PC so far, not on a freshly installed
+Windows.
 Then open **P4 Analysis** from the Start menu or the desktop shortcut.
 
 - The installer is not code-signed, so Windows SmartScreen may say "Windows protected your PC". Choose **More info**,
@@ -174,9 +176,10 @@ python build\build_installer.py
 python build\test_installed.py --real
 ```
 
-The first builds `dist\P4-Analysis-Setup-<version>.exe` (needs `uv` and Inno Setup 6). It bundles a portable Python 3.10
-with the exact package versions in `build\requirements-lock.txt`, and a small launcher, `P4 Analysis.exe`. The second
-installs it into a temporary folder and tests it there: the launcher opens the window, the whole demo flow runs, one
+The first builds `dist\P4-Analysis-Setup-<version>.exe` (needs `uv`, Inno Setup 6 and Microsoft's Visual C++ runtime 14.44
+or newer, which it copies from this PC). It bundles a portable Python 3.10 with the exact package versions in
+`build\requirements-lock.txt`, and a small launcher, `P4 Analysis.exe`. The second installs it into a temporary folder and
+tests it there: the C++ runtime loads from the bundle, the launcher opens the window, the whole demo flow runs, one
 real session is downloaded and analysed (about 8 GB, deleted afterwards; leave out `--real` to skip it), and it
 uninstalls cleanly.
 

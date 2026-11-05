@@ -8,6 +8,7 @@ Build the Windows installer:  python build/build_installer.py        (about 15 m
 
 Needs: uv and Inno Setup 6 (winget install JRSoftware.InnoSetup). Output is unsigned, so Windows SmartScreen warns.
 """
+import ctypes
 import glob
 import os
 import re
@@ -24,6 +25,8 @@ PYTHON_VERSION = '3.10'
 APP_PARTS = ['p4_app', 'tools', os.path.join('tests', 'fake_allensdk')]
 APP_FILES = ['vbn_p4.py', 'vbn_p4_original.py', 'README.md']
 NO_WINDOW = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0     # no console pop-ups
+VC_RUNTIME = ('msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll', 'vcruntime140_threads.dll')
+MIN_VC_RUNTIME = (14, 44)                      # the newest toolset any bundled package was built with
 IGNORE = shutil.ignore_patterns('__pycache__', '*.pyc', 'pilot_check.json')
 
 
@@ -63,7 +66,33 @@ def build_runtime(uv):
     # entry-point scripts hold absolute paths and are never used; headers and import libs are only for compiling
     for name in ('Scripts', 'include', 'libs'):
         shutil.rmtree(os.path.join(RUNTIME, name), ignore_errors=True)
+    bundle_vc_runtime()
     return python
+
+
+def file_version(path):
+    """(major, minor) of a Windows file's version."""
+    api = ctypes.WinDLL('version')
+    size = api.GetFileVersionInfoSizeW(path, None)
+    data = ctypes.create_string_buffer(size)
+    api.GetFileVersionInfoW(path, 0, size, data)
+    info, length = ctypes.c_void_p(), ctypes.c_uint()
+    api.VerQueryValueW(data, '\\', ctypes.byref(info), ctypes.byref(length))
+    high = ctypes.cast(info, ctypes.POINTER(ctypes.c_uint32))[2]
+    return high >> 16, high & 0xffff
+
+
+def bundle_vc_runtime():
+    """Put one matching set of Microsoft's C++ runtime beside the bundled Python, where every package finds it, so the
+    app doesn't need it installed on the user's PC. It comes from this PC because the copies inside packages are too
+    old: numexpr was built with 14.44, and a program can crash on a runtime older than the one it was built with."""
+    system32 = os.path.join(os.environ['SystemRoot'], 'System32')
+    for name in VC_RUNTIME:
+        source = os.path.join(system32, name)
+        if not os.path.exists(source) or file_version(source) < MIN_VC_RUNTIME:
+            sys.exit(f'{source} must be version {MIN_VC_RUNTIME[0]}.{MIN_VC_RUNTIME[1]} or newer. '
+                     'Install the latest Microsoft Visual C++ Redistributable (x64), then build again.')
+        shutil.copy2(source, os.path.join(RUNTIME, name))
 
 
 def copy_app():
